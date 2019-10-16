@@ -53,7 +53,7 @@ function play() {
         let x = Math.floor(X + R * Math.sin(l * 2 * Math.PI / max_letters) - W / 2);
         let y = Math.floor(Y - R * Math.cos(l * 2 * Math.PI / max_letters) - W / 2);
 
-        exec(IM + ' ' + file + ' -crop ' + W + 'x' + W + '+' + x + '+' + y + ' +repage -white-threshold 25% -flatten -fuzz 5% -trim +repage out' + l + '.png');
+        exec(IM + ' ' + file + ' -crop ' + W + 'x' + W + '+' + x + '+' + y + ' +repage -channel RGB -negate -white-threshold 25% -flatten -fuzz 5% -trim +repage out' + l + '.png');
 
         let out = exec(IM + ' out' + l + '.png -gravity center -scale 6x6^! -fx ".5+u-p{1,1}" -compress none -depth 16 ppm:-');
         let a = out.toString().split('\n');
@@ -91,6 +91,8 @@ function play() {
         }
     }
 
+    console.log();
+
     if (quit) {
         if (attempt++ > 2) {
             console.log();
@@ -102,8 +104,9 @@ function play() {
             console.log();
             console.log('Retry #' + attempt);
 
-            client.tap(539, 1770, function () {});
-            client.tap(872, 534, function () {});
+            client.tap(539, 1770, function (err) {
+                client.tap(872, 534, function () {});
+            });
             setTimeout(play, 5000);
             return;
         }
@@ -131,6 +134,8 @@ function play() {
 
         console.log(length + ' letters: ' + current_found_words.join(', '));
     }
+
+    console.log();
 
     found_words = found_words.filter(function (item, pos) {
         return found_words.indexOf(item) == pos;
@@ -162,11 +167,11 @@ function play() {
 
     w = 0;
 
+    console.log('Sending words');
     sendNextWord();
 }
 
 function sendNextWord() {
-    console.log('Sending word: ' + found_words[w]);
     let commands = [
         "touch down " + found_words_index[w][0].x + " " + found_words_index[w][0].y,
         "sleep 50",
@@ -185,6 +190,8 @@ function sendNextWord() {
         setTimeout(sendNextWord, 550);
     } else {
         setTimeout(function () {
+            console.log();
+            console.log('Continue to next level')
 
             client.tap(539, 1770, function () {});
 
