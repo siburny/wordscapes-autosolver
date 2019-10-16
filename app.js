@@ -15,7 +15,7 @@ const IM = '"c:\\Program Files\\ImageMagick-7.0.8-Q16\\convert.exe"';
 const words = fs.readFileSync('words_alpha.txt').toString().split('\n').map(Function.prototype.call, String.prototype.trim);
 
 // Load alphabet
-const alphabet = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'k', 'l', 'm', 'n', 'o', 'p', 'r', 's', 't', 'u', 'v', 'y'];
+const alphabet = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'k', 'l', 'm', 'n', 'o', 'p', 'r', 's', 't', 'u', 'v', 'w', 'y'];
 var alphabet_scores = {};
 for (let j = 0; j < alphabet.length; j++) {
     let out = exec(IM + ' letters\\' + alphabet[j] + '.png -gravity center -scale 6x6^! -fx ".5+u-p{1,1}" -compress none -depth 16 ppm:-');
@@ -28,7 +28,7 @@ for (let j = 0; j < alphabet.length; j++) {
 }
 
 // Global vars
-var found_words_index, found_words, client, w, attempt = 0;
+var found_words_index, found_words, client, w, attempt = 0, negate = false;
 
 function play() {
 
@@ -41,7 +41,7 @@ function play() {
 
     // center
     const X = 539,
-        Y = 1809,
+        Y = 1800,
         R = 240,
         W = 130;
 
@@ -53,7 +53,7 @@ function play() {
         let x = Math.floor(X + R * Math.sin(l * 2 * Math.PI / max_letters) - W / 2);
         let y = Math.floor(Y - R * Math.cos(l * 2 * Math.PI / max_letters) - W / 2);
 
-        exec(IM + ' ' + file + ' -crop ' + W + 'x' + W + '+' + x + '+' + y + ' +repage -channel RGB -negate -white-threshold 25% -flatten -fuzz 5% -trim +repage out' + l + '.png');
+        exec(IM + ' ' + file + ' -crop ' + W + 'x' + W + '+' + x + '+' + y + ' +repage ' + (negate ? '-channel RGB -negate' : '') + ' -white-threshold 10% -flatten -fuzz 5% -trim +repage out' + l + '.png');
 
         let out = exec(IM + ' out' + l + '.png -gravity center -scale 6x6^! -fx ".5+u-p{1,1}" -compress none -depth 16 ppm:-');
         let a = out.toString().split('\n');
@@ -94,13 +94,15 @@ function play() {
     console.log();
 
     if (quit) {
-        if (attempt++ > 2) {
+        if (attempt++ > 4) {
             console.log();
             console.log('Give up')
             adb_process.kill();
             client.end();
             process.exit();
         } else {
+            negate = !negate;
+
             console.log();
             console.log('Retry #' + attempt);
 
@@ -174,12 +176,12 @@ function play() {
 function sendNextWord() {
     let commands = [
         "touch down " + found_words_index[w][0].x + " " + found_words_index[w][0].y,
-        "sleep 50",
+        "sleep 25",
     ];
 
     for (let l = 1; l < found_words_index[w].length; l++) {
         commands.push("touch move " + found_words_index[w][l].x + " " + found_words_index[w][l].y);
-        commands.push("sleep 50");
+        commands.push("sleep 25");
     }
 
     commands.push("touch up " + found_words_index[w][found_words_index[w].length - 1].x + " " + found_words_index[w][found_words_index[w].length - 1].y);
@@ -187,7 +189,7 @@ function sendNextWord() {
     client.send(commands, function (err) {});
 
     if (++w < found_words_index.length) {
-        setTimeout(sendNextWord, 550);
+        setTimeout(sendNextWord, 400);
     } else {
         setTimeout(function () {
             console.log();
