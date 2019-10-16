@@ -8,7 +8,7 @@ const monkey = require('adbkit-monkey');
 var args = process.argv.slice(2);
 
 // Consts
-const ADB = '"c:\\Users\\Max\\AppData\\Local\\Android\\sdk\\platform-tools\\adb.exe"';
+const ADB = '"c:\\Users\\' + require("os").userInfo().username + '\\AppData\\Local\\Android\\sdk\\platform-tools\\adb.exe"';
 const file = args[0] || 'screen.png';
 const max_letters = args[1] || 6;
 const IM = '"c:\\Program Files\\ImageMagick-7.0.8-Q16\\convert.exe"';
@@ -194,7 +194,7 @@ function sendNextWord() {
 }
 
 // Prep
-exec(ADB + ' shell killall com.android.commands.monkey || 1');
+exec(ADB + ' shell killall com.android.commands.monkey &');
 exec(ADB + ' forward tcp:1080 tcp:1080');
 var adb_process = execAsync(ADB + ' shell monkey --port 1080');
 
