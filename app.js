@@ -15,7 +15,7 @@ const IM = '"c:\\Program Files\\ImageMagick-7.0.8-Q16\\convert.exe"';
 const words = fs.readFileSync('words_alpha.txt').toString().split('\n').map(Function.prototype.call, String.prototype.trim);
 
 // Load alphabet
-const alphabet = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'k', 'l', 'm', 'n', 'o', 'p', 'r', 's', 't', 'u', 'v', 'w', 'y'];
+const alphabet = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'r', 's', 't', 'u', 'v', 'w', 'y', 'z'];
 var alphabet_scores = {};
 for (let j = 0; j < alphabet.length; j++) {
     let out = exec(IM + ' letters\\' + alphabet[j] + '.png -gravity center -scale 6x6^! -fx ".5+u-p{1,1}" -compress none -depth 16 ppm:-');
@@ -28,7 +28,8 @@ for (let j = 0; j < alphabet.length; j++) {
 }
 
 // Global vars
-var found_words_index, found_words, client, w, attempt = 0, negate = false;
+var found_words_index, found_words, client, w, attempt = 0,
+    negate = false;
 
 function play() {
 
@@ -78,7 +79,7 @@ function play() {
             }
         }
 
-        if (pick_length < 50000) {
+        if (pick_length < 60000) {
             console.log('Letter #' + l + ': ' + alphabet[pick_letter] + ' (' + pick_length + ')');
             found_letters.push(alphabet[pick_letter]);
             found_coordinates[l] = {
@@ -93,7 +94,7 @@ function play() {
 
     console.log();
 
-    if (quit) {
+    if (quit || (found_letters[0] == 'i' && found_letters[1] == 'i' && found_letters[2] == 'i' && found_letters[3] == 'i')) {
         if (attempt++ > 4) {
             console.log();
             console.log('Give up')
@@ -106,9 +107,11 @@ function play() {
             console.log();
             console.log('Retry #' + attempt);
 
-            client.tap(539, 1770, function (err) {
+            client.tap(539, 1770, function () {});
+            setTimeout(function() {
                 client.tap(872, 534, function () {});
-            });
+            }, 500);
+
             setTimeout(play, 5000);
             return;
         }
@@ -176,12 +179,12 @@ function play() {
 function sendNextWord() {
     let commands = [
         "touch down " + found_words_index[w][0].x + " " + found_words_index[w][0].y,
-        "sleep 25",
+        "sleep 40",
     ];
 
     for (let l = 1; l < found_words_index[w].length; l++) {
         commands.push("touch move " + found_words_index[w][l].x + " " + found_words_index[w][l].y);
-        commands.push("sleep 25");
+        commands.push("sleep 40");
     }
 
     commands.push("touch up " + found_words_index[w][found_words_index[w].length - 1].x + " " + found_words_index[w][found_words_index[w].length - 1].y);
@@ -189,13 +192,16 @@ function sendNextWord() {
     client.send(commands, function (err) {});
 
     if (++w < found_words_index.length) {
-        setTimeout(sendNextWord, 400);
+        setTimeout(sendNextWord, 500);
     } else {
         setTimeout(function () {
             console.log();
             console.log('Continue to next level')
 
             client.tap(539, 1770, function () {});
+            setTimeout(function() {
+                client.tap(872, 534, function () {});
+            }, 500);
 
             setTimeout(play, 2000);
         }, 13000)
