@@ -79,7 +79,7 @@ function play() {
         }
 
         if (pick_length < 50000) {
-            console.log('Letter #' + l + ': ' + alphabet[pick_letter] + ' (' + pick_length + ')');
+            console.log('Letter #' + l + ': ' + alphabet[pick_letter].toUpperCase() + ' (' + pick_length + ')');
             found_letters.push(alphabet[pick_letter]);
             found_coordinates[l] = {
                 x: x + W / 2,
@@ -214,7 +214,7 @@ client = monkey.connect({
 client.on('error', function () {
     client.end();
     adb_process.kill();
-    exec(ADB + ' shell killall com.android.commands.monkey');
+    exec(ADB + ' shell killall com.android.commands.monkey &');
     console.log('Error occured while sending command. Exiting.');
     process.exit(1);
 });
