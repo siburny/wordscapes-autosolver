@@ -15,7 +15,7 @@ const IM = '"c:\\Program Files\\ImageMagick-7.0.8-Q16\\convert.exe"';
 const words = fs.readFileSync('words_alpha.txt').toString().split('\n').map(Function.prototype.call, String.prototype.trim);
 
 // Load alphabet
-const alphabet = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'r', 's', 't', 'u', 'v', 'w', 'y', 'z'];
+const alphabet = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'];
 var alphabet_scores = {};
 for (let j = 0; j < alphabet.length; j++) {
     let out = exec(IM + ' letters\\' + alphabet[j] + '.png -gravity center -scale 6x6^! -fx ".5+u-p{1,1}" -compress none -depth 16 ppm:-');
@@ -79,7 +79,7 @@ function play() {
             }
         }
 
-        if (pick_length < 60000) {
+        if (pick_length < 50000) {
             console.log('Letter #' + l + ': ' + alphabet[pick_letter] + ' (' + pick_length + ')');
             found_letters.push(alphabet[pick_letter]);
             found_coordinates[l] = {
