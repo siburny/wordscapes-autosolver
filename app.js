@@ -192,7 +192,7 @@ function sendNextWord() {
     client.send(commands, function (err) {});
 
     if (++w < found_words_index.length) {
-        setTimeout(sendNextWord, 500);
+        setTimeout(sendNextWord, 700);
     } else {
         setTimeout(function () {
             console.log();
