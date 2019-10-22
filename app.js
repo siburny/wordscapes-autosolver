@@ -3,6 +3,7 @@ const execAsync = require('child_process').exec;
 const fs = require('fs');
 const Combinatorics = require('js-combinatorics');
 const monkey = require('adbkit-monkey');
+const moment = require('moment');
 
 // Arguments
 var args = process.argv.slice(2);
@@ -29,14 +30,21 @@ for (let j = 0; j < alphabet.length; j++) {
 
 // Global vars
 var found_words_index, found_words, client, w, attempt = 0,
-    negate = false;
+    negate = false,
+    gameId;
+
+// Prep
+exec(ADB + ' shell killall com.android.commands.monkey &');
+exec(ADB + ' forward tcp:1080 tcp:1080');
+var adb_process = execAsync(ADB + ' shell monkey --port 1080');
+
 
 function play() {
 
     // Get screenshot
     if (file == 'screen.png') {
         exec(ADB + ' shell screencap -p /sdcard/screen.png');
-        exec(ADB + ' pull /sdcard/screen.png');
+        exec(ADB + ' pull /sdcard/screen.png output\\' + gameId);
         exec(ADB + ' shell rm /sdcard/screen.png');
     }
 
@@ -108,7 +116,7 @@ function play() {
             console.log('Retry #' + attempt);
 
             client.tap(539, 1770, function () {});
-            setTimeout(function() {
+            setTimeout(function () {
                 client.tap(872, 534, function () {});
             }, 500);
 
@@ -176,6 +184,7 @@ function play() {
     sendNextWord();
 }
 
+
 function sendNextWord() {
     let commands = [
         "touch down " + found_words_index[w][0].x + " " + found_words_index[w][0].y,
@@ -198,32 +207,48 @@ function sendNextWord() {
             console.log();
             console.log('Continue to next level')
 
-            client.tap(539, 1770, function () {});
-            setTimeout(function() {
-                client.tap(872, 534, function () {});
-            }, 500);
-
-            setTimeout(play, 2000);
+            start();
         }, 13000)
     }
 }
 
-// Prep
-exec(ADB + ' shell killall com.android.commands.monkey &');
-exec(ADB + ' forward tcp:1080 tcp:1080');
-var adb_process = execAsync(ADB + ' shell monkey --port 1080');
+function start() {
+    gameId = moment(new Date()).format('YYYYMMDDHHmmss');
+    fs.mkdir('output\\' + gameId, {
+        recursive: true
+    }, function (err) {
+        if (err) {
+            exit();
+        }
 
-client = monkey.connect({
-    port: 1080
-});
+        client.tap(539, 1770, function () {
+            play();
+        });
+    });
 
-client.on('error', function () {
+
+    // setTimeout(function () {
+    //     client.tap(872, 534, function () {});
+    // }, 500);
+}
+
+function exit() {
     client.end();
     adb_process.kill();
     exec(ADB + ' shell killall com.android.commands.monkey &');
     console.log('Error occured while sending command. Exiting.');
     process.exit(1);
-});
+}
 
 // Start
-play();
+setTimeout(() => {
+    client = monkey.connect({
+        port: 1080
+    });
+
+    client.on('error', function () {
+        exit();
+    });
+
+    start();
+}, 1000);
