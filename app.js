@@ -11,15 +11,39 @@ var args = process.argv.slice(2);
 // Consts
 const ADB = '"c:\\Users\\' + require("os").userInfo().username + '\\AppData\\Local\\Android\\sdk\\platform-tools\\adb.exe"';
 const file = args[0] || 'screen.png';
-const max_letters = args[1] || 6;
 const IM = '"c:\\Program Files\\ImageMagick-7.0.8-Q16\\convert.exe"';
 const words = fs.readFileSync('words_alpha.txt').toString().split('\n').map(Function.prototype.call, String.prototype.trim);
+const retries = [{
+        max_letters: 6,
+        negate: false
+    },
+    {
+        max_letters: 6,
+        negate: true
+    },
+    {
+        max_letters: 7,
+        negate: false
+    },
+    {
+        max_letters: 7,
+        negate: true
+    },
+    {
+        max_letters: 8,
+        negate: false
+    },
+    {
+        max_letters: 8,
+        negate: true
+    },
+];
 
 // Load alphabet
 const alphabet = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'];
 var alphabet_scores = {};
 for (let j = 0; j < alphabet.length; j++) {
-    let out = exec(IM + ' letters\\' + alphabet[j] + '.png -gravity center -scale 6x6^! -fx ".5+u-p{1,1}" -compress none -depth 16 ppm:-');
+    let out = exec(IM + ' letters\\' + alphabet[j] + '.png -gravity center -scale 6x6^! -compress none -depth 16 ppm:-');
 
     let a = out.toString().split('\n');
     alphabet_scores[alphabet[j]] = [];
@@ -28,9 +52,19 @@ for (let j = 0; j < alphabet.length; j++) {
     }
 }
 
+// load auxiliary 
+(function () {
+    let out = exec(IM + ' letters\\ad.png -gravity center -scale 6x6^! -compress none -depth 16 ppm:-');
+
+    let a = out.toString().split('\n');
+    alphabet_scores['ad'] = [];
+    for (let k = 2; k < a.length; k++) {
+        alphabet_scores['ad'].push.apply(alphabet_scores['ad'], a[k].split(' ').filter(Boolean));
+    }
+})();
+
 // Global vars
 var found_words_index, found_words, client, w, attempt = 0,
-    negate = false,
     gameId;
 
 // Prep
@@ -48,23 +82,29 @@ function play() {
         exec(ADB + ' shell rm /sdcard/screen.png');
     }
 
+    checkForAd();
+
+    console.log();
+    console.log('Try #' + (attempt + 1) + ': max_letters -> ' + retries[attempt].max_letters + ', negate -> ' + retries[attempt].negate);
+
     // center
     const X = 539,
         Y = 1800,
         R = 240,
-        W = 130;
+        W = 160,
+        H = 130;
 
     var quit = false;
 
     var found_letters = [];
     var found_coordinates = [];
-    for (let l = 0; l < max_letters; l++) {
-        let x = Math.floor(X + R * Math.sin(l * 2 * Math.PI / max_letters) - W / 2);
-        let y = Math.floor(Y - R * Math.cos(l * 2 * Math.PI / max_letters) - W / 2);
+    for (let l = 0; l < retries[attempt].max_letters; l++) {
+        let x = Math.floor(X + R * Math.sin(l * 2 * Math.PI / retries[attempt].max_letters) - W / 2);
+        let y = Math.floor(Y - R * Math.cos(l * 2 * Math.PI / retries[attempt].max_letters) - H / 2);
 
-        exec(IM + ' ' + file + ' -crop ' + W + 'x' + W + '+' + x + '+' + y + ' +repage ' + (negate ? '-channel RGB -negate' : '') + ' -white-threshold 10% -flatten -fuzz 5% -trim +repage out' + l + '.png');
+        exec(IM + ' ' + (file == 'screen.png' ? 'output\\' + gameId + '\\' : '') + file + ' -crop ' + W + 'x' + H + '+' + x + '+' + y + ' +repage ' + (retries[attempt].negate ? '-channel RGB -negate' : '') + ' -white-threshold 5% -flatten -fuzz 5% -trim +repage output\\' + gameId + '\\out' + l + '.png');
 
-        let out = exec(IM + ' out' + l + '.png -gravity center -scale 6x6^! -fx ".5+u-p{1,1}" -compress none -depth 16 ppm:-');
+        let out = exec(IM + ' output\\' + gameId + '\\out' + l + '.png -gravity center -scale 6x6^! -compress none -depth 16 ppm:-');
         let a = out.toString().split('\n');
         let score = [];
         for (let k = 2; k < a.length; k++) {
@@ -92,7 +132,7 @@ function play() {
             found_letters.push(alphabet[pick_letter]);
             found_coordinates[l] = {
                 x: x + W / 2,
-                y: y + W / 2
+                y: y + H / 2
             };
         } else {
             console.log('Letter #' + l + ': NO match (' + pick_length + ')');
@@ -103,33 +143,27 @@ function play() {
     console.log();
 
     if (quit || (found_letters[0] == 'i' && found_letters[1] == 'i' && found_letters[2] == 'i' && found_letters[3] == 'i')) {
-        if (attempt++ > 4) {
+        if (++attempt == retries.length) {
             console.log();
             console.log('Give up')
             adb_process.kill();
             client.end();
             process.exit();
         } else {
-            negate = !negate;
+            // client.tap(539, 1770, function () {});
+            // setTimeout(function () {
+            //     client.tap(872, 534, function () {});
+            // }, 500);
 
-            console.log();
-            console.log('Retry #' + attempt);
-
-            client.tap(539, 1770, function () {});
-            setTimeout(function () {
-                client.tap(872, 534, function () {});
-            }, 500);
-
-            setTimeout(play, 5000);
+            setTimeout(play, 6000);
             return;
         }
     }
-    attempt = 0;
 
     console.log();
 
     found_words = [];
-    for (let length = 3; length <= max_letters; length++) {
+    for (let length = 3; length <= retries[attempt].max_letters; length++) {
         let current_found_words = []
         var cmb = Combinatorics.permutation(found_letters, length).toArray();
 
@@ -213,6 +247,8 @@ function sendNextWord() {
 }
 
 function start() {
+    attempt = 0;
+
     gameId = moment(new Date()).format('YYYYMMDDHHmmss');
     fs.mkdir('output\\' + gameId, {
         recursive: true
@@ -221,15 +257,44 @@ function start() {
             exit();
         }
 
-        client.tap(539, 1770, function () {
-            play();
-        });
+        client.tap(539, 1770, function () {});
+
+        setTimeout(play, 1000);
     });
 
 
     // setTimeout(function () {
     //     client.tap(872, 534, function () {});
     // }, 500);
+}
+
+function compare(score1, score2) {
+    if (score1.length != score2.length) {
+        return 10000000000000;
+    }
+
+    let length = 0;
+    for (let s = 0; s < score1.length; s++) {
+        length += Math.pow(score1[s] - score2[s], 2);
+    }
+    return Math.sqrt(length);
+}
+
+function checkForAd() {
+    exec(IM + ' ' + (file == 'screen.png' ? 'output\\' + gameId + '\\' : '') + file + ' -crop 66x66+842+506 +repage -channel RGB -threshold 50%  +repage output\\' + gameId + '\\ad.png');
+
+    let out = exec(IM + ' output\\' + gameId + '\\ad.png -gravity center -scale 6x6^! -compress none -depth 16 ppm:-');
+    let a = out.toString().split('\n');
+    let score = [];
+    for (let k = 2; k < a.length; k++) {
+        score.push.apply(score, a[k].split(' ').filter(Boolean));
+    }
+
+    let diff = compare(score, alphabet_scores['ad']);
+    if (diff < 1000) {
+        console.log('Found an ad - > closing.');
+        client.tap(878, 536, function () {});
+    }
 }
 
 function exit() {
