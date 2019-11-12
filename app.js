@@ -15,35 +15,11 @@ const IM = '"c:\\Program Files\\ImageMagick-7.0.8-Q16\\convert.exe"';
 const IM_IDENTIFY = '"c:\\Program Files\\ImageMagick-7.0.8-Q16\\identify.exe"';
 const words = fs.readFileSync('words_alpha.txt').toString().split('\n').map(Function.prototype.call, String.prototype.trim);
 const retries = [{
-        max_letters: 3,
+        max_letters: 8,
         negate: false
     },
     {
-        max_letters: 3,
-        negate: true
-    },
-    {
-        max_letters: 4,
-        negate: false
-    },
-    {
-        max_letters: 4,
-        negate: true
-    },
-    {
-        max_letters: 5,
-        negate: false
-    },
-    {
-        max_letters: 5,
-        negate: true
-    },
-    {
-        max_letters: 6,
-        negate: false
-    },
-    {
-        max_letters: 6,
+        max_letters: 8,
         negate: true
     },
     {
@@ -55,11 +31,35 @@ const retries = [{
         negate: true
     },
     {
-        max_letters: 8,
+        max_letters: 6,
         negate: false
     },
     {
-        max_letters: 8,
+        max_letters: 6,
+        negate: true
+    },
+    {
+        max_letters: 5,
+        negate: false
+    },
+    {
+        max_letters: 5,
+        negate: true
+    },
+    {
+        max_letters: 4,
+        negate: false
+    },
+    {
+        max_letters: 4,
+        negate: true
+    },
+    {
+        max_letters: 3,
+        negate: false
+    },
+    {
+        max_letters: 3,
         negate: true
     },
 ];
@@ -108,7 +108,7 @@ const SCREEN_W = a[0];
 const SCREEN_H = a[1];
 const X = Math.floor(SCREEN_W / 2),
     Y = Math.floor(SCREEN_H * 0.835),
-    R = Math.floor(SCREEN_W * 0.20),
+    R = Math.floor(SCREEN_W * 0.21),
     W = Math.floor(SCREEN_W / 5.8),
     H = Math.floor(SCREEN_W / 7.2);
 
@@ -181,6 +181,7 @@ function play() {
 
     checkForAd1();
     checkForAd2();
+    checkForAd3();
 
     console.log();
     console.log('Attempt #' + (attempt + 1));
@@ -409,6 +410,25 @@ function checkForAd2() {
     if (diff < 10000) {
         console.log('Found an ad -> closing.');
         client.tap(1150, 750, function () {});
+    }
+}
+
+function checkForAd3() {
+    console.log('Checking for a ad #3');
+
+    exec(IM + ' output\\' + gameId + '\\screen.png -crop 66x66+1150+790 +repage -channel RGB -threshold 50% +repage -trim output\\' + gameId + '\\ad3.png');
+
+    let out = exec(IM + ' output\\' + gameId + '\\ad3.png -gravity center -scale 6x6^! -compress none -depth 16 ppm:-');
+    let a = out.toString().split('\n');
+    let score = [];
+    for (let k = 2; k < a.length; k++) {
+        score.push.apply(score, a[k].split(' ').filter(Boolean));
+    }
+
+    let diff = compare(score, alphabet_scores['ad']);
+    if (diff < LETTER_THRESHOLD) {
+        console.log('Found an ad -> closing.');
+        client.tap(1180, 820, function () {});
     }
 }
 
