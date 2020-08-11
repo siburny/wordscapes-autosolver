@@ -107,10 +107,10 @@ let a = out.toString().split(' ')[2].split('x');
 const SCREEN_W = a[0];
 const SCREEN_H = a[1];
 const X = Math.floor(SCREEN_W / 2),
-    Y = Math.floor(SCREEN_H * 0.835),
-    R = Math.floor(SCREEN_W * 0.21),
-    W = Math.floor(SCREEN_W / 5.8),
-    H = Math.floor(SCREEN_W / 7.2);
+    Y = Math.floor(SCREEN_H * 0.836),
+    R = Math.floor(SCREEN_W * 0.222),
+    W = Math.floor(SCREEN_W / 7),
+    H = Math.floor(SCREEN_W / 8.7);
 
 
 function detect_number_of_letters() {
@@ -126,9 +126,9 @@ function detect_number_of_letters() {
             let x = Math.floor(X + R * Math.sin(l * 2 * Math.PI / retries[attempt].max_letters) - W / 2);
             let y = Math.floor(Y - R * Math.cos(l * 2 * Math.PI / retries[attempt].max_letters) - H / 2);
 
-            exec(IM + ' ' + 'output\\' + gameId + '\\screen.png -crop ' + W + 'x' + H + '+' + x + '+' + y + ' +repage ' + (retries[attempt].negate ? '-channel RGB -negate' : '') + ' -white-threshold 5% -flatten -fuzz 5% -trim +repage output\\' + gameId + '\\out' + l + '.png');
+            exec(IM + ' ' + 'output\\' + gameId + '\\screen.png -crop ' + W + 'x' + H + '+' + x + '+' + y + ' +repage ' + (retries[attempt].negate ? '-channel RGB -negate' : '') + ' -white-threshold 5% -flatten -fuzz 5% -trim +repage output\\' + gameId + '\\out' + retries[attempt].max_letters + '_' + retries[attempt].negate + '_' + l + '.png');
 
-            let out = exec(IM + ' output\\' + gameId + '\\out' + l + '.png -gravity center -scale 6x6^! -compress none -depth 16 ppm:-');
+            let out = exec(IM + ' output\\' + gameId + '\\out' + retries[attempt].max_letters + '_' + retries[attempt].negate + '_' + l + '.png -gravity center -scale 6x6^! -compress none -depth 16 ppm:-');
             let a = out.toString().split('\n');
             let score = [];
             for (let k = 2; k < a.length; k++) {
@@ -179,9 +179,8 @@ function play() {
     exec(ADB + ' pull /sdcard/screen.png output\\' + gameId);
     exec(ADB + ' shell rm /sdcard/screen.png');
 
-    checkForAd1();
-    checkForAd2();
-    checkForAd3();
+    checkForAd();
+    checkForCollect();
 
     console.log();
     console.log('Attempt #' + (attempt + 1));
@@ -231,8 +230,8 @@ function play() {
         if (pick_length < LETTER_THRESHOLD) {
             found_letters.push(alphabet[pick_letter]);
             found_coordinates[l] = {
-                x: x + W / 2,
-                y: y + H / 2
+                x: Math.floor(x + W / 2),
+                y: Math.floor(y + H / 2)
             };
         } else {
             console.log('Letter #' + l + ': NO match (' + pick_length + ')');
@@ -327,7 +326,12 @@ function sendNextWord() {
 
     commands.push("touch up " + found_words_index[w][found_words_index[w].length - 1].x + " " + found_words_index[w][found_words_index[w].length - 1].y);
 
-    client.send(commands, function (err) {});
+    client.send(commands, function (err) {
+        if (err) {
+            console.log('Error sending words: ', err);
+            exit();
+        }
+    });
 
     if (++w < found_words_index.length) {
         setTimeout(sendNextWord, 700);
@@ -375,12 +379,57 @@ function compare(score1, score2) {
     return Math.sqrt(length);
 }
 
-function checkForAd1() {
-    console.log('Checking for a ad #1');
+function checkForAd() {
+    const AD_POSITION = [{
+            x: Math.floor(SCREEN_W * 0.884),
+            y: Math.floor(SCREEN_H * 0.383)
+        },
+        {
+            x: Math.floor(SCREEN_W * 0.785),
+            y: Math.floor(SCREEN_H * 0.234)
+        },
+        {
+            x: Math.floor(SCREEN_W * 0.799),
+            y: Math.floor(SCREEN_H * 0.253)
+        },
+    ];
 
-    exec(IM + ' output\\' + gameId + '\\screen.png -crop 66x66+1273+1196 +repage -channel RGB -threshold 50%  +repage output\\' + gameId + '\\ad1.png');
+    console.log('Checking for ads');
 
-    let out = exec(IM + ' output\\' + gameId + '\\ad1.png -gravity center -scale 6x6^! -compress none -depth 16 ppm:-');
+    for (let ad = 0; ad < AD_POSITION.length; ad++) {
+        exec(IM + ' output\\' + gameId + '\\screen.png -crop 66x66+' + AD_POSITION[ad].x + '+' + AD_POSITION[ad].y + ' +repage -channel RGB -threshold 50% -flatten -fuzz 5% -trim +repage output\\' + gameId + '\\ad' + (ad + 1) + '.png');
+
+        let out = exec(IM + ' output\\' + gameId + '\\ad' + (ad + 1) + '.png -gravity center -scale 6x6^! -compress none -depth 16 ppm:-');
+        let a = out.toString().split('\n');
+        let score = [];
+        for (let k = 2; k < a.length; k++) {
+            score.push.apply(score, a[k].split(' ').filter(Boolean));
+        }
+
+        let diff = compare(score, alphabet_scores['ad']);
+        if (diff < 10000) {
+            console.log('Found an ad -> closing.');
+            client.tap(AD_POSITION[ad].x + 30, AD_POSITION[ad].y + 30, function (err) {
+                if (err) {
+                    console.log('Error closing an ad: ', err);
+                    exit();
+                }
+            });
+        }
+    }
+}
+
+function checkForCollect() {
+    const COLLECT_POSITION = {
+        x: Math.floor(SCREEN_W * 0.361),
+        y: Math.floor(SCREEN_H * 0.785)
+    };
+
+    console.log('Checking for offers');
+
+    exec(IM + ' output\\' + gameId + '\\screen.png -crop 66x66+' + COLLECT_POSITION.x + '+' + COLLECT_POSITION.y + ' +repage -channel RGB -threshold 50%  +repage output\\' + gameId + '\\collect.png');
+
+    let out = exec(IM + ' output\\' + gameId + '\\collect.png -gravity center -scale 6x6^! -compress none -depth 16 ppm:-');
     let a = out.toString().split('\n');
     let score = [];
     for (let k = 2; k < a.length; k++) {
@@ -389,46 +438,13 @@ function checkForAd1() {
 
     let diff = compare(score, alphabet_scores['ad']);
     if (diff < 10000) {
-        console.log('Found an ad -> closing.');
-        client.tap(1311, 1223, function () {});
-    }
-}
-
-function checkForAd2() {
-    console.log('Checking for a ad #2');
-
-    exec(IM + ' output\\' + gameId + '\\screen.png -crop 66x66+1130+730 +repage -channel RGB -threshold 50% +repage -trim output\\' + gameId + '\\ad2.png');
-
-    let out = exec(IM + ' output\\' + gameId + '\\ad2.png -gravity center -scale 6x6^! -compress none -depth 16 ppm:-');
-    let a = out.toString().split('\n');
-    let score = [];
-    for (let k = 2; k < a.length; k++) {
-        score.push.apply(score, a[k].split(' ').filter(Boolean));
-    }
-
-    let diff = compare(score, alphabet_scores['ad']);
-    if (diff < 10000) {
-        console.log('Found an ad -> closing.');
-        client.tap(1150, 750, function () {});
-    }
-}
-
-function checkForAd3() {
-    console.log('Checking for a ad #3');
-
-    exec(IM + ' output\\' + gameId + '\\screen.png -crop 66x66+1150+790 +repage -channel RGB -threshold 50% +repage -trim output\\' + gameId + '\\ad3.png');
-
-    let out = exec(IM + ' output\\' + gameId + '\\ad3.png -gravity center -scale 6x6^! -compress none -depth 16 ppm:-');
-    let a = out.toString().split('\n');
-    let score = [];
-    for (let k = 2; k < a.length; k++) {
-        score.push.apply(score, a[k].split(' ').filter(Boolean));
-    }
-
-    let diff = compare(score, alphabet_scores['ad']);
-    if (diff < LETTER_THRESHOLD) {
-        console.log('Found an ad -> closing.');
-        client.tap(1180, 820, function () {});
+        console.log('Found an offer -> closing.');
+        client.tap(COLLECT_POSITION.x + 100, COLLECT_POSITION.y + 50, function (err) {
+            if (err) {
+                console.log('Error closing an ad: ', err);
+                exit();
+            }
+        });
     }
 }
 
