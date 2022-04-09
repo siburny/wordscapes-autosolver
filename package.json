@@ -6,7 +6,7 @@
   "dependencies": {
     "adbkit-monkey": "^1.0.1",
     "js-combinatorics": "^0.5.4",
-    "moment": "^2.24.0"
+    "moment": "^2.29.2"
   },
   "repository": {
     "type": "git",
